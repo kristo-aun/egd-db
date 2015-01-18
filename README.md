@@ -62,4 +62,4 @@ If both English and Estonian translations of the same entr are needed, X should 
 
 # Design
 ## Class diagram
-<img src="https://pbs.twimg.com/profile_images/526708451062206464/qbT9Q4hE.png"/>
+<img src="https://raw.githubusercontent.com/esutoniagodesu/egd-db/master/class-diagrams/schema/ac.png"/>
