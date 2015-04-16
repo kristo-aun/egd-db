@@ -19,9 +19,15 @@ Backup<br/>
 pg_dump -i -h localhost -p 5432 -U egdclient -F c -b -v -f "egd.backup" egd
 ```
 
-Restore<br/>
+Restore schema and data<br/>
 ```
 pg_restore -i -h localhost -p 5432 -U egdclient -d egd -v "egd.backup"
+```
+
+
+*Restore schema only*<br/>
+```
+psql -U egdclient -d egd -1 -f egd.schema.backup
 ```
 
 Custom collations are required for the string ordering to work . You need to have both Estonian and Japanese locales installed
