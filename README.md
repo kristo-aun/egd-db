@@ -1,73 +1,98 @@
 # EsutoniaGoDesu database SQL and documentation
-This is a short description of the PostgreSQL database design and objects.
-Comprehensive documentation about the function of each database object is in SQL comments.
+This readme describes steps necessary to setup EGD database on Linux.
 
 ## Setup
-Create database with encoding ja_JP.UTF-8. For this you need to have Japanese locale installed to your computer.
-The databse and all its objects are owned by egdclient.<br/>
-```
-CREATE DATABASE "egd"
-  WITH OWNER "egdclient"
-  ENCODING 'UTF8'
-  LC_COLLATE = 'en_US.UTF-8'
-  LC_CTYPE = 'en_US.UTF-8';
-```
+Custom collations are required for the string ordering to work. You need to have both Estonian and Japanese locales installed
+ to your computer.
+
+### Install Postgresql in Ubuntu 14.04
+
+Create the file /etc/apt/sources.list.d/pgdg.list, and add a line for the repository: 
+    
+    sudo echo "deb http://apt.postgresql.org/pub/repos/apt/ trusty-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
 
 
-Backup<br/>
-```
-pg_dump -i -h localhost -p 5432 -U egdclient -F c -b -v -f "egd.backup" egd
-```
+Import the repository signing key, and update the package lists: 
 
-Restore schema and data<br/>
-```
-pg_restore -i -h localhost -p 5432 -U egdclient -d egd -v "egd.backup"
-```
+    wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+
+Install PostgreSQL RDBMS version 9.4: 
+
+    sudo apt-get update && sudo apt-get install postgresql-9.4 postgresql-contrib-9.4
+
+### Create EsutoniaGoDesu database
+
+You need to login as database super user under postgresql server. The simplest way to connect as the postgres user is
+to change to the postgres unix user on the database server using su command as follows:
+    
+    sudo sh -c  "su - postgres"
+    
+Create tablespace directory owned by postgres: 
+    
+    mkdir /var/lib/postgresql/9.4/main/egdspace
+
+Now connect to database server: 
+
+    psql
+
+Add a user called egdrole. Use this user for all work regarding this database: 
+
+    CREATE USER egdrole WITH PASSWORD 'my_password';
+    
+Create a tablespace:
+    
+    CREATE TABLESPACE egdspace OWNER egdrole LOCATION '/var/lib/postgresql/9.4/main/egdspace';
+
+Add a database called egd. Just in case lets use template0 to avoid any site-local additions to template1:
+
+    CREATE DATABASE egd WITH OWNER egdrole ENCODING 'UTF8' TEMPLATE template0 TABLESPACE egdspace;
+
+Connect to database:
+
+    \c egd
+
+Now grant all privileges on database:
+
+    GRANT ALL PRIVILEGES ON DATABASE egd to egdrole;
+    
+Set public schema owner to egdrole, becuse default is postgres:
+    
+    ALTER SCHEMA public OWNER TO egdrole;               
+
+### Restore from backup
+Your database should be up and ready now, so lets restore schema and data. 
+Make sure you'll connect to the datbase with egdrole to avoid mixup with objects belonging to other users.   
+ 
+Restore only the schema. The whole dump should be restored as a single transaction, so the restore is either fully completed or fully rolled back.  
+
+    pg_restore --host=localhost --port=5432 --username=egdrole --dbname=egd "egd.schema.backup" --single-transaction --verbose --exit-on-error
+    
+
+Restore only the data:
+
+    pg_restore --host=localhost --port=5432 --username=egdrole --dbname=egd "egd.data.backup" --single-transaction --verbose --exit-on-error
 
 
-*Restore schema only*<br/>
-```
-psql -U egdclient -d egd -1 -f egd.schema.backup
-```
-
-Custom collations are required for the string ordering to work . You need to have both Estonian and Japanese locales installed
- to your computer.<br/>
-```
-CREATE COLLATION japanese (LOCALE = 'ja_JP.utf8');
-```
-
-```
-CREATE COLLATION estonian (LOCALE = 'et_EE.utf8');
-```
+Garbage-collect and analyze a PostgreSQL database.
+vacuumdb is a utility for cleaning a PostgreSQL database. 
+vacuumdb will also generate internal statistics used by the PostgreSQL query optimizer.
+    
+    vacuumdb --analyze --host=localhost --port=5432 --username=postgres --dbname=egd
 
 
+## Backup
 
-There are 10 schemas altogether.
+Dump only the object definitions (schema), not data.
 
-- **ac**: Access control. Controling access to API resources, enforcing policies and auditing usage.
+    pg_dump --schema-only --host=localhost --port=5432 --username=egdrole --format=c --verbose --file="egd.schema.backup" --dbname=egd
 
-- **core**: Core10k, Core6k and ILO vocabulary lists. Core data is based on respective Anki decks. Audio is stored in DB as well.
-ILO list contains all words from the yellow pocket dictionary. Each word has been normalized to account for its kanji composition.
-The entire Core10k list uses 2191 kanjis, Core6k - 1446, ILO - 1555.
-- **estwn**: TEKSaurus data schema reduced to just 3 classes: example->variant->word_meaning.
-- **freq**: various frequency lists. Used in test generation module and for creating translation queue.
-- **heisig**: Doth RTK4 and RTK6 lists complemented with top 2 Koohii stories and various other information.
-- **jmdict**: JP-ET dictionary.
-- **jmdict_en**: JP-EN dictionary. This is being used in the article- and test generation module as JP-ET dictionary is not comprehensive enough.
-- **kanjidic2**: all about Kanjis. Stroke diagrams are in public.image
-- **public**: EsutoniaGoDesu specific data.
-- **test**: serves data for article- and test generation module.
+Dump only the data, not the schema (data definitions). Table data, large objects, and sequence values are dumped.
+    
+    pg_dump --data-only --host=localhost --port=5432 --username=egdrole --format=c --blobs --verbose --file="egd.data.backup" --dbname=egd
 
+## Tips & tricks 
 
+This process requires you to to connect several times to the PostgreSQL server, asking for a password each time. 
+It is convenient to have a ~/.pgpass file for this purpose.
 
-## JMDict gochas
-
-JMDict identifiers have a bad habit of changing from time-to-time, meaning that links between different versions using entr.id is not possible.
-If both English and Estonian translations of the same entr are needed, X should be used.
-
-
-# Design
-## Class diagram
-### AC
-<img src="https://raw.githubusercontent.com/esutoniagodesu/egd-db/master/class-diagrams/schema/ac.png"/>
-
+    echo "localhost:5432:*:egdrole:my_password" >> ~/.pgpass
