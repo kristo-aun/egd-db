@@ -90,7 +90,13 @@ Dump only the data, not the schema (data definitions). Table data, large objects
     
     pg_dump --data-only --host=localhost --port=5432 --username=egdrole --format=c --blobs --verbose --file="egd.data.backup" --dbname=egd
 
-## Tips & tricks 
+
+Dump schema and data (full backup)
+
+	pg_dump --host=localhost --port=5432 --username=egdrole --format=c --blobs --verbose --file="egd.backup" --dbname=egd
+
+
+## Tips & tricks
 
 This process requires you to to connect several times to the PostgreSQL server, asking for a password each time. 
 It is convenient to have a ~/.pgpass file for this purpose.
