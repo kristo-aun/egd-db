@@ -37,7 +37,7 @@ Now connect to database server:
 
 Add a user called egdrole. Use this user for all work regarding this database: 
 
-    CREATE USER egdrole WITH PASSWORD 'my_password';
+    CREATE USER egdrole WITH PASSWORD 'changeit';
     
 Create a tablespace:
     
@@ -80,6 +80,10 @@ vacuumdb will also generate internal statistics used by the PostgreSQL query opt
     vacuumdb --analyze --host=localhost --port=5432 --username=postgres --dbname=egd
 
 
+Populate materialized views with data
+
+	REFRESH MATERIALIZED VIEW kanjidic2.vm_kanji_data_with_yomi;
+
 ## Backup
 
 Dump only the object definitions (schema), not data.
@@ -101,4 +105,20 @@ Dump schema and data (full backup)
 This process requires you to to connect several times to the PostgreSQL server, asking for a password each time. 
 It is convenient to have a ~/.pgpass file for this purpose.
 
-    echo "localhost:5432:*:egdrole:my_password" >> ~/.pgpass
+    echo "localhost:5432:*:egdrole:changeit" >> ~/.pgpass
+  
+    
+If you get this error during restore:    
+    
+    pg_restore: [archiver (db)] Error while PROCESSING TOC:
+    pg_restore: [archiver (db)] Error from TOC entry 4484; 0 0 COMMENT EXTENSION plpgsql 
+    pg_restore: [archiver (db)] could not execute query: ERROR:  must be owner of extension plpgsql
+        Command was: COMMENT ON EXTENSION plpgsql IS 'PL/pgSQL procedural language';
+    
+try deleting plpgsql comment before pg_dump and then restore again. The issue is raised because egdrole is not 
+superuser and only superuser is allowed to alter objects owned by postgres. 
+
+    COMMENT ON EXTENSION plpgsql IS null;
+    
+    
+    
