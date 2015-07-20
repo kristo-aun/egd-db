@@ -120,5 +120,12 @@ superuser and only superuser is allowed to alter objects owned by postgres.
 
     COMMENT ON EXTENSION plpgsql IS null;
     
+
+Revoke user privileges    
+    
+    REVOKE ALL PRIVILEGES ON ALL sequences IN SCHEMA jmet FROM jmdictdbv;
+    
+
+    
     
     
